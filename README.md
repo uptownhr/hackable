@@ -1,4 +1,6 @@
 # hackathon-starter-lite
+
+[![Join the chat at https://gitter.im/uptownhr/hackathon-starter-lite](https://badges.gitter.im/uptownhr/hackathon-starter-lite.svg)](https://gitter.im/uptownhr/hackathon-starter-lite?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 lighter and easier version of hackathon starter
 
 [![Build Status](https://travis-ci.org/uptownhr/hackathon-starter-lite.svg)](https://travis-ci.org/uptownhr/hackathon-starter-lite)
