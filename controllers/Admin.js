@@ -31,7 +31,7 @@ router.get('/user/:id', function(req,res){
 
 router.post('/user', function(req,res){
   req.assert('email', 'Email is not valid').isEmail();
-  
+
   if(req.body.confirmPassword || req.body.password){
     req.assert('password', 'Password must be at least 4 characters long').len(4);
     req.assert('confirmPassword', 'Passwords do not match').equals(req.body.password);
@@ -71,7 +71,7 @@ router.post('/user', function(req,res){
       req.flash('errors', [{msg: err.message}])
       return res.redirect('/admin/user?' + qs.stringify(req.body))
     }
-  
+
     req.flash('success', [{msg: 'Saved'}])
     res.redirect('/admin/users')
   });
@@ -90,24 +90,24 @@ router.get('/user/delete/:id', function(req,res){
 })
 
 router.get('/users', function(req,res){
-  
+
   var query = User.find();
   var param = '';
-  
+
   if (req.query.search) {
     param = decodeURI(req.query.search);
     var search = { $regex : new RegExp(param, "i") };
-    
+
     query.or([
       { email : search },
       { 'profile.name' : search }
     ]);
   }
-  
+
   query.exec( function(err, users) {
     res.render('admin/users', { users, search : param })
   });
-  
+
 })
 
 /**
@@ -115,23 +115,23 @@ router.get('/users', function(req,res){
  */
 
 router.get('/posts', function(req,res){
-  
+
   var query = Post.find();
   var param = '';
-  
+
   if (req.query.search) {
     param = decodeURI(req.query.search);
-    
+
     query.or([{ title :
       { $regex : new RegExp(param, "i") } }
     ]);
   }
-  
+
   query.exec( function(err, posts) {
     res.render('admin/posts', {posts, search : param})
   });
-  
-  
+
+
 })
 
 router.get('/post', function(req, res){
@@ -151,7 +151,7 @@ router.get('/post/:id', function(req, res){
 router.post('/post', function(req, res){
   const body = req.body,
     user_id = req.user._id;
-  
+
   async.waterfall([
     function (callback) {
       if (body._id.length) {
@@ -178,7 +178,7 @@ router.post('/post', function(req, res){
       req.flash('errors', [{msg: err.message}])
       return res.redirect('/admin/post?' + qs.stringify(req.body))
     }
-  
+
     req.flash('success', [{msg: 'Saved'}])
     res.redirect('/admin/posts')
   });
@@ -203,20 +203,20 @@ router.get('/post/delete/:id', function(req,res){
 
 // list projects
 router.get('/projects', function(req,res){
-  
+
   var query = Project.find();
   var param = '';
-  
+
   if (req.query.search) {
     param = decodeURI(req.query.search);
     var search = { $regex : new RegExp(param, "i") };
-    
+
     query.or([
       { name : search },
       { project_url : search }
     ]);
   }
-  
+
   query.exec( function(err, projects) {
     res.render('admin/projects', { projects, search : param })
   });
@@ -268,7 +268,7 @@ router.post('/project', function(req, res){
       req.flash('errors', [{msg: err.message}])
       return res.redirect('/admin/user?' + qs.stringify(req.body))
     }
-  
+
     req.flash('success', [{msg: 'Saved'}])
     res.redirect('/admin/projects')
   });
@@ -303,16 +303,16 @@ router.post('/images/upload', upload.array('file', 20), function(req,res){
 router.get('/products', function(req,res){
   var query = Product.find();
   var param = '';
-  
+
   if (req.query.search) {
     var param = decodeURI(req.query.search);
     var search = { $regex : new RegExp(param, "i") };
-    
+
     query.or([
       { name : search }
     ]);
   }
-  
+
   query.exec( function(err, products) {
     res.render('admin/products', { products, search : param })
   });
@@ -339,11 +339,11 @@ router.get('/product/:id', function(req,res){
 router.post('/product', function(req, res){
   var id = req.body._id
   var body = req.body;
-  
+
   var errors = [];
-  if (!validator.isCurrency(body.price)) 
+  if (!validator.isCurrency(body.price))
     errors.push('Price is not valid');
-  
+
   if (errors.length) {
     req.flash('errors', {msg: errors.join('<br>')});
     return res.redirect('/admin/product/'+id);
@@ -374,7 +374,7 @@ router.post('/product', function(req, res){
       req.flash('errors', [{msg: err.message}])
       return res.redirect('/admin/product?' + qs.stringify(req.body))
     }
-  
+
     req.flash('success', [{msg: product.name + ' saved'}])
     res.redirect('/admin/products')
   });
@@ -399,17 +399,17 @@ router.get('/product/delete/:id', function(req, res){
 router.get('/files', function(req,res){
   var query = File.find();
   var param = '';
-  
+
   if (req.query.search) {
     param = decodeURI(req.query.search);
     var search = { $regex : new RegExp(param, "i") };
-    
+
     query.or([
       { originalname : search },
       { filename : search }
     ]);
   }
-  
+
   query.exec( function(err, files) {
     res.render('admin/files', {files, search : param })
   });
@@ -417,8 +417,7 @@ router.get('/files', function(req,res){
 
 //ADD new file model
 router.get('/file', function(req, res){
-  const file = {}
-  res.render('admin/file', {file} )
+  res.render('admin/file')
 })
 
 //view/edit file model
@@ -435,7 +434,7 @@ router.get('/file/:id', function(req,res){
 // add new/edit file model
 router.post('/file', function(req, res){
   var body = req.body;
-  
+
   async.waterfall([
     function (callback) {
       if (body._id.length) {
@@ -461,7 +460,7 @@ router.post('/file', function(req, res){
       req.flash('errors', [{msg: err.message}])
       return res.redirect('/admin/file?' + qs.stringify(req.body))
     }
-  
+
     req.flash('success', [{msg: file.filename + ' saved'}])
     res.redirect('/admin/files')
   });

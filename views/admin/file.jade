@@ -1,76 +1,9 @@
 extends layout
 block content
-  form(method="POST" action="/admin/file")
-    input(type="hidden" name="_id" value=file._id)
-    .dashhead
-      .dashhead-titles
-        h6.dashhead-subtitle Files
-        h2.dashhead-title New/Edit File
-      .btn-toolbar.dashhead-toolbar
-        button.btn.btn-primary-outline Save File
-        //
-          <div class="btn-toolbar-item input-with-icon">
-          <input type="text" value="01/01/15 - 01/08/15" class="form-control" data-provide="datepicker">
-          <span class="icon icon-calendar"></span>
-          </div>
-    hr.m-t
-    section.content-header
-      #field_original_name.field.row
-        .col-md-12
-          .form-group
-            label Original Name
-            input.form-control(type="text" name="originalname" placeholder="file name" value=file.originalname)
-          // /.form-group
-        // /.col
-      // /.row
-      #field_encoding.field.row
-        .col-md-12
-          .form-group
-            label encoding
-            input.form-control(type="text" name="encoding" placeholder="Encoding" value=file.encoding)
-          // /.form-group
-        // /.col
-      // /.row
-      #field_mimetype.field.row
-        .col-md-12
-          .form-group
-            label mimetype
-            input.form-control(type="text" name="mimetype" placeholder="mimetype" value=file.mimetype)
-          // /.form-group
-        // /.col
-      // /.row
-      #field_destination.field.row
-        .col-md-12
-          .form-group
-            label Logo URL
-            input.form-control(type="text" name="destination" placeholder="destination" value=file.destination)
-          // /.form-group
-        // /.col
-      // /.row
-      #field_filename.field.row
-        .col-md-12
-          .form-group
-            label File Name
-            input.form-control(type="text" name="filename" placeholder="filename" value=file.filename)
-          // /.form-group
-        // /.col
-      // /.row
-      #field_path.field.row
-        .col-md-12
-          .form-group
-            label File Path
-            input.form-control(type="text" name="path" placeholder="path" value=file.path)
-          // /.form-group
-        // /.col
-      // /.row
-      #field_size.field.row
-        .col-md-12
-          .form-group
-            label File Size
-            input.form-control(type="text" name="size" placeholder="size" value=file.size)
-          // /.form-group
-        // /.col
-      // /.row
+  pre
+     code You can upload files by dragging and dropping files to the admin.
+      |Once uploaded, you're uploaded files will appear on the right sidebar.
+      |Clicking on an uploaded file will copy the file url to your clipboard.
 
 
 block scripts
