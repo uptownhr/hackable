@@ -28,7 +28,7 @@ exports.isAuthenticated = function (req, res, next) {
     return next()
   }
 
-  req.session.returnTo = req.path
+  req.session.returnTo = req.originalUrl
   res.redirect('/auth/login')
 }
 

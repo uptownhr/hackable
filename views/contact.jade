@@ -1,0 +1,22 @@
+extends layout
+
+block content
+	.row
+	.col-sm-6.col-sm-offset-3
+		h3 Send us a message!
+			form#contactForm(method='post', role='form' action='/admin/contact')
+			.row
+				.form-group.col-sm-6
+					label.h4(for='name') Name
+					input#name.form-control(type='text', name='name', placeholder='Enter Name', required='')
+				.form-group.col-sm-6
+					label.h4(for='name') Email
+					input#email.form-control(type='email', name='email', placeholder='Enter Email', required='')
+				.form-group(style='padding: 15px')
+					label.h4(for='message') Message
+					textarea#message.form-control(rows='8', name='message', placeholder='Enter your message', required='')
+				button#form-submit.btn.btn-primary-outline.btn-md.pull-right(type='submit') Send
+	
+
+
+

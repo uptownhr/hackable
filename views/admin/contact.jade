@@ -1,0 +1,32 @@
+extends layout
+block content
+	.dashhead
+		.dashhead-titles
+			h6.dashhead-subtitle Edit
+			h2.dashhead-title Contact
+		.btn-toolbar.dashhead-toolbar
+			.btn-group
+				a.btn.btn-primary-outline(href='#', type='button')
+					| New Contact
+					span.icon.icon-plus
+	.row
+	.panel.panel-primary
+		.panel-heading.text-center
+				h3.text-center Edit Contact
+		.panel-body
+			.col-sm-8.col-sm-offset-2
+				form#contactForm(method='post', role='form')
+				.row
+					.form-group.col-sm-6
+						label.h4(for='name') Name
+						input#name.form-control(type='text', name='name', required='')
+					.form-group.col-sm-6
+						label.h4(for='name') Email
+						input#email.form-control(type='email', name='email', required='')
+					.form-group(style='padding: 15px')
+						label.h4(for='message') Message
+						textarea#message.form-control(rows='8', name='message', required='')
+					button#form-submit.btn.btn-primary-outline.btn-md.pull-right(type='submit') Save Changes
+						span.icon.icon-pencil
+					button#form-submit.btn.btn-warning-outline.btn-md.pull-right(type='submit'
+					style='margin-right: 8px;') Cancel

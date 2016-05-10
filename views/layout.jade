@@ -30,11 +30,13 @@ html(lang='en')
         else
           a(href='/auth/login') Login
     br(style='clear: both;')
+    hr
     .container.content
       main
         include partials/flash
         block content
-      footer.footer
+      footer.footer(style='clear: both;')
+        hr
         small
           | © hackable
           time 2016
