@@ -1,6 +1,6 @@
-const router = require('express').Router()
-const async = require('async'),
+const router = require('express').Router(),
   Promise = require('bluebird'),
+  User = require('../models/User'),
   config = require('../config'),
   Project = require('../models/Project'),
   Product = require('../models/Product');

@@ -13,7 +13,6 @@ var Seeder = function () {
     .then(() => User.findOne({ role: 'admin' }))
     .then(user => {
       if (user) throw new Error(user)
-
       return new User({
         email: 'admin@admin.com',
         password: 'asdfasdf',
