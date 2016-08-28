@@ -1,6 +1,6 @@
 const config = require('../config'),
   _ = require('lodash'),
-  passport = require('passport'),
+  passport = require('koa-passport'),
   User = require('../models/User')
 
 const LocalStrategy = require('passport-local').Strategy
@@ -23,21 +23,23 @@ passport.deserializeUser(function (id, done) {
 /**
  * Login Required middleware.
  */
-exports.isAuthenticated = function (req, res, next) {
-  if (req.isAuthenticated()) {
-    return next()
+exports.isAuthenticated = async (ctx, next) => {
+  if (ctx.isAuthenticated()) {
+    await next()
   }
 
-  req.session.returnTo = req.path
-  res.redirect('/auth/login')
+  if (!ctx.isAuthenticated()) {
+    ctx.session.returnTo = ctx.request.originalUrl
+    ctx.redirect('/auth/login')
+  }
 }
 
 /**
  * Role is admin
  */
-exports.isAdmin = function (req, res, next) {
-  if (req.user && req.user.role == 'admin') return next()
-  res.send('Only admins may access the admin page')
+exports.isAdmin = async (ctx, next) => {
+  if (ctx.req.user && ctx.req.user.role == 'admin') return await next()
+  ctx.body = 'Only admins may access the admin page'
 }
 
 /**
@@ -77,28 +79,27 @@ function findProviderUser(provider, id) {
  * @returns {Function}
  */
 function handleOauthLogin(profileMapper) {
-  return function (req, accessToken, secondaryToken, profile, done) {
-    const providerName = req.params.provider;
-    const mappedProfile = profileMapper(profile);
+  return async function (req, accessToken, secondaryToken, profile, done) {
+    const providerName = profile.provider
+    const mappedProfile = profileMapper(profile)
     const provider = { id: profile.id, accessToken, secondaryToken, name: providerName }
+
     if (req.user) {
       //check if this oauth login is already being used
-      findProviderUser(providerName, profile.id)
-        .then(user => {
-          if (user) {
-            req.flash('errors',
-              { msg: `There is already a ${provider.name}
+      let user = await findProviderUser(providerName, profile.id)
+
+      if (user) {
+        req.flash('errors',
+          { msg: `There is already a ${provider.name}
             account that belongs to you. Sign in with that account or
             delete it, then link it with your current account.` });
-            return done()
-          }
+        return done()
+      }
 
-          req.user.providers.push(provider)
-          req.user.save((err) => {
-            req.flash('success', { msg: providerName + ' account has been linked.' });
-            done(err, req.user);
-          })
-        })
+      req.user.providers.push(provider)
+      let saved = await req.user.save()
+      req.flash('success', { msg: providerName + ' account has been linked.' })
+      return done(null, saved)
     }else {
       findProviderUser(providerName, profile.id)
         .then(user => {
@@ -120,6 +121,7 @@ function handleOauthLogin(profileMapper) {
           user = new User()
           user.profile = mappedProfile
           user.providers.push(provider)
+          user.email = `${user.profile.name}@${provider}.com`
 
           user.save(err => done(err, user))
         })
@@ -205,7 +207,7 @@ function mapGithubProfile(profile) {
 passport.use(new GitHubStrategy({
   clientID: config.social.github.client_id,
   clientSecret: config.social.github.client_secret,
-  callbackURL: 'http://localhost:3000/auth/o/github/callback',
+  callbackURL: '/auth/o/github/callback',
   passReqToCallback: true
 }, handleOauthLogin(mapGithubProfile)))
 

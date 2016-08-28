@@ -1,4 +1,4 @@
-var mongoose = require('mongoose');
+var mongoose = require('mongoose')
 
 var productSchema = new mongoose.Schema({
   name: { type: String },
@@ -9,8 +9,8 @@ var productSchema = new mongoose.Schema({
 })
 
 productSchema.pre('save', function (next) {
-  this.price = Number(this.price.replace(/[^0-9\.]+/g, ''));
+  this.price = Number(this.price.replace(/[^0-9\.]+/g, ''))
   next();
 })
 
-module.exports = mongoose.model('product', productSchema);
+module.exports = mongoose.model('product', productSchema)

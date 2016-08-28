@@ -1,4 +1,4 @@
-var mongoose = require('mongoose');
+var mongoose = require('mongoose')
 
 var projectSchema = new mongoose.Schema({
   name: { type: String },
@@ -9,4 +9,4 @@ var projectSchema = new mongoose.Schema({
   project_url: { type: String }
 })
 
-module.exports = mongoose.model('project', projectSchema);
+module.exports = mongoose.model('project', projectSchema)

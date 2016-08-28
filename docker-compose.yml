@@ -14,7 +14,7 @@ app:
   ports:
   - 3000:3000
 test:
-  image: node:5.8.0
+  image: uptownhr/hackable
   volumes_from:
   - app
   working_dir: /app

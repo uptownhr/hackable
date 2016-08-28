@@ -1,69 +1,57 @@
-const router = require('express').Router(),
-  config = require('../config'),
+const router = require('koa-router')({ prefix: '/auth' })
+
+const config = require('../config'),
   User = require('../models/User'),
   queryString = require('querystring'),
-  passport = require('passport')
+  passport = require('koa-passport')
 
-router.get('/login', function (req, res) {
-  res.render('login')
+router.get('/login', async ctx => {
+  ctx.render('login')
 })
 
-router.post('/login', function (req, res, next) {
-  req.assert('email', 'Email is not valid').isEmail();
-  req.assert('password', 'Password must be at least 6 characters long').len(6);
+router.post('/login', async (ctx, next) => {
+  ctx.checkBody('email', 'Email is not valid').isEmail()
+  ctx.checkBody('password', 'Password must be at least 6 characters long').len(6)
 
-  var errors = req.validationErrors();
-
-  if (errors) {
-    req.flash('errors', errors);
-    return res.redirect('login');
+  if (ctx.errors) {
+    ctx.flash('errors', ctx.errors)
+    return ctx.redirect('login')
   }
 
-  passport.authenticate('local', function (err, user, info) {
-    if (err) {
-      return next(err);
-    }
-
+  await passport.authenticate('local', function (user, info, status) {
     if (!user) {
-      req.flash('errors', { msg: info.message });
-      return res.redirect('/auth/login');
+      ctx.flash('errors', [info.message])
+      return ctx.redirect('/auth/login')
     }
 
-    req.logIn(user, function (err) {
-      if (err) {
-        return next(err);
-      }
-
-      req.flash('success', { msg: 'Success! You are logged in.' });
-      res.redirect(req.session.returnTo || '/');
-    });
-  })(req, res, next);
+    ctx.flash('success', ['Success! You are logged in.'])
+    ctx.redirect('/')
+    return ctx.logIn(user)
+  })(ctx, next)
 })
 
-router.get('/register', function (req, res) {
-  res.render('register', {
-    query: req.query
+router.get('/register', async ctx => {
+  ctx.render('register', {
+    query: ctx.req.query || {}
   })
 })
 
-router.get('/logout', function (req, res) {
-  req.logout()
-
-  res.redirect('/')
+router.get('/logout', async ctx => {
+  ctx.logout()
+  ctx.redirect('/')
 })
 
-router.post('/register', function (req, res, next) {
-  req.assert('email', 'Email is not valid').isEmail();
-  req.assert('password', 'Password must be at least 6 characters long').len(6);
+router.post('/register', async ctx => {
+  ctx.checkBody('email', 'Email is not valid').isEmail()
+  ctx.checkBody('password', 'Password must be at least 6 characters long').len(6)
 
-  const errors = req.validationErrors();
-  const body = req.body
+  const body = ctx.request.body
 
-  if (errors) {
-    req.flash('errors', errors);
+  if (ctx.errors) {
+    ctx.flash('errors', errors)
     delete body.password
 
-    return res.redirect('/auth/register?' + queryString.stringify(body));
+    return res.redirect('/auth/register?' + queryString.stringify(body))
   }
 
   const user = new User({
@@ -74,45 +62,62 @@ router.post('/register', function (req, res, next) {
     }
   })
 
-  User.findOne({ email: body.email }).exec()
-    .then((existingUser) => {
-      if (existingUser) {
+  const existingUser = await User.findOne({ email: body.email })
 
-        req.flash('errors', { msg: 'Account with that email address already exists.' });
-        return res.redirect('/auth/register')
-      }
+  if (existingUser) {
+    ctx.flash('errors', ['Account with that email address already exists.'])
+    return ctx.redirect('/auth/register')
+  }
 
-      return user.save()
-    })
-    .then(registeredUser => req.logIn(registeredUser, (err) => {
-      if (err) return next(err)
-      res.redirect('/')
-    }))
-    .catch((err) => {
-      if (err) return next(err)
-    })
+  const saved = await user.save()
+  await ctx.logIn(saved)
+  ctx.flash('success', ['Successfully registered'])
+  ctx.redirect('/')
 })
 
-router.get('/o/:provider', function (req, res, next) {
-  const provider = req.params.provider
+router.get('/o/:provider', async (ctx, next) => {
+  const provider = ctx.params.provider
   if (config.social.hasOwnProperty(provider)) {
-    return passport.authenticate(provider)(req, res, next)
+    return passport.authenticate(provider)(ctx, next)
   } else {
-    res.redirect('/');
+    ctx.redirect('/')
   }
 })
 
-router.get('/o/:provider/callback', function (req, res, next) {
-  const provider = req.params.provider
+router.get('/o/:provider/callback', async (ctx, next) => {
+  const provider = ctx.params.provider
 
   if (config.social.hasOwnProperty(provider)) {
-    return passport.authenticate(provider, { failureRedirect: '/auth/login' })(req, res, next);
+    return passport.authenticate(provider, { failureRedirect: '/auth/login' })(ctx, next)
   } else {
-    res.redirect('/');
+    ctx.redirect('/')
   }
-}, function (req, res) {
+}, function (ctx, next) {
 
-  res.redirect(req.session.returnTo || '/')
+  ctx.redirect(ctx.session.returnTo || '/')
 })
+
+router.get('/askEmail', ctx => {
+  ctx.render('askEmail')
+})
+
+router.post('/askEmail', async ctx => {
+  ctx.checkBody('email', 'Email is not valid').isEmail()
+
+  if (ctx.errors) {
+    ctx.flash('errors', ctx.errors)
+    return ctx.redirect('/auth/askEmail')
+  }
+
+  const body = ctx.request.body
+
+  ctx.req.user.askEmail = false
+  ctx.req.user.email = body.email
+
+  await ctx.req.user.save()
+
+  ctx.redirect('/')
+})
+
 
 module.exports = router

@@ -1,4 +1,4 @@
-var mongoose = require('mongoose');
+var mongoose = require('mongoose')
 
 var postSchema = new mongoose.Schema({
   created: { type: Date, default: Date.now() },

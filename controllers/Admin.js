@@ -1,503 +1,389 @@
-const router = require('express').Router()
+const router = require('koa-router')({ prefix: '/admin' })
 const
   _ = require('lodash'),
   async = require('async'),
-  multer = require('multer'),
+  multer = require('koa-multer'),
   path = require('path'),
   qs = require('qs'),
   validator = require('validator'),
-  models = require('../models')
+  passport = require('../config/passport'),
+  Promise = require('bluebird')
+
+const { User, Post, File, Project, Product, Contact } = require('../models')
 
 const upload = multer({ dest: path.join(__dirname, '../public/uploads') })
-const User =  models.User
-const Post = models.Post
-const File = models.File
-const Project = models.Project
-const Product = models.Product
 
-router.get('/', function (req, res) {
-  res.render('admin/overview')
+router.use(passport.isAuthenticated, passport.isAdmin)
+
+router.get('/', async ctx => {
+  ctx.render('admin/overview')
 })
 
-router.get('/user', function (req, res) {
+router.get('/users', async ctx => {
+  let search = ctx.query.search
+  let query = {}
+
+  if (search) {
+    search = { $regex: new RegExp(search, 'i') }
+    query = { $or: [{ email: search }, { 'profile.name': search }] }
+  }
+
+  const users = await User.find(query)
+  ctx.render('admin/users', { users, search: ctx.query.search })
+})
+
+router.get('/user', async ctx => {
   const user = {}
-  res.render('admin/user', { user })
-  console.log("wf0t");
+  const query = ctx.query
+
+  _.merge(user, query)
+  ctx.render('admin/user', { user })
 })
 
-router.get('/user/:id', function (req, res) {
-  User.findOne({ _id: req.params.id }).then(user => {
-    res.render('admin/user', { user })
-  })
+router.get('/user/:id', async ctx => {
+  const user = await User.findOne({ _id: ctx.params.id })
+
+  ctx.render('admin/user', { user })
 })
 
-router.post('/user', function (req, res) {
-  req.assert('email', 'Email is not valid').isEmail();
+router.post('/user', async (ctx, next) => {
+  const body = ctx.request.body
 
-  if (req.body.confirmPassword || req.body.password) {
-    req.assert('password', 'Password must be at least 4 characters long').len(4);
-    req.assert('confirmPassword', 'Passwords do not match').equals(req.body.password);
+  ctx.checkBody('email').isEmail('Email is not valid');
+
+  if (body.confirmPassword || body.password) {
+    ctx.checkBody('password').len(4, 'Password must be at least 4 characters long')
+    ctx.checkBody('confirmPassword').eq(body.password, 'Passwords do not match')
+  } else {
+    //no need to include password if user isn't setting one
+    delete body.password;
   }
 
-  var errors = req.validationErrors();
+  //not a user model field
+  delete body.confirmPassword
 
-  if (errors) {
-    console.log(errors);
-    req.flash('errors', errors);
-    return res.redirect('/admin/user?' + qs.stringify(req.body));
+  if (ctx.errors) {
+    ctx.flash('errors', ctx.errors)
+    return ctx.redirect('/admin/user?' + qs.stringify(body))
   }
 
-  const body = req.body;
+  const update = body._id
 
-  async.waterfall([
-    function (callback) {
-      if (body._id.length) {
-        User.findOne({ _id: body._id }, function (err, user) {
-          user = _.merge(user, req.body);
-          callback(null, user);
-        });
-      } else {
-        delete body._id; //remove empty id from user
+  let user = update ? await User.findOne({ _id: body._id }) : new User()
 
-        var user = new User(body);
-        callback(null, user);
-      }
-    },
+  delete body._id
 
-    function (user, callback) {
-      user.save(function (err, saved) {
-        callback(err, saved);
-      })
-    }
-  ], function (err, user) {
-    if (err) {
-      console.log(err);
-      req.flash('errors', [{ msg: err.message }])
-      return res.redirect('/admin/user?' + qs.stringify(req.body))
-    }
+  user = _.merge(user, body)
 
-    req.flash('success', [{ msg: 'Saved' }])
-    res.redirect('/admin/users')
-  });
+  try {
+    const saved = await user.save()
+    ctx.flash('success', ['Saved'])
+    ctx.redirect('/admin/users')
+  } catch (e) {
+    console.log(e)
+    ctx.flash('errors', [e.message])
+    return ctx.redirect('back')
+  }
 })
 
-router.get('/user/delete/:id', function (req, res) {
-  User.remove({ _id: req.params.id }, function (err) {
-    if (err) {
-      req.flash('error', { msg: err.message })
-    }else {
-      req.flash('success', { msg: 'deleted' })
-    }
-
-    return res.redirect('/admin/users')
-  })
-})
-
-router.get('/users', function (req, res) {
-
-  var query = User.find();
-  var param = '';
-
-  if (req.query.search) {
-    param = decodeURI(req.query.search);
-    var search = { $regex: new RegExp(param, 'i') };
-
-    query.or([
-      { email: search },
-      { 'profile.name': search }
-    ]);
+router.get('/user/delete/:id', async ctx => {
+  try {
+    await User.remove({ _id: ctx.params.id })
+    ctx.flash('success', { msg: 'deleted' })
+  } catch (err) {
+    ctx.flash('error', { msg: err.message })
   }
 
-  query.exec(function (err, users) {
-    res.render('admin/users', { users, search: param })
-  });
-
+  return ctx.redirect('/admin/users')
 })
 
 /**
  * Blog Post Editing
  */
 
-router.get('/posts', function (req, res) {
+router.get('/posts', async ctx => {
 
-  var query = Post.find();
-  var param = '';
+  let search = ctx.query.search
+  let query = {}
 
-  if (req.query.search) {
-    param = decodeURI(req.query.search);
-
-    query.or([{ title:
-      { $regex: new RegExp(param, 'i') } }
-    ]);
+  if (search) {
+    search = { $regex: new RegExp(search, 'i') }
+    query = { $or: [{ title: search }] }
   }
 
-  query.exec(function (err, posts) {
-    res.render('admin/posts', { posts, search: param })
-  });
-
+  const posts = await Post.find(query)
+  ctx.render('admin/posts', { posts, search: ctx.query.search })
 })
 
-router.get('/post', function (req, res) {
+router.get('/post', async ctx =>  {
   const post = {}
-  res.render('admin/post', { post })
+  const query = ctx.query
+
+  _.merge(post, query)
+  ctx.render('admin/post', { post })
 })
 
-router.get('/post/:id', function (req, res) {
-  const id = req.params.id
+router.get('/post/:id', async ctx => {
+  const post = await Post.findOne({ _id: ctx.params.id })
 
-  Post.findOne({ _id: id }, function (err, post) {
-    if (post) return res.render('admin/post', { post })
-  })
-
+  ctx.render('admin/post', { post })
 })
 
-router.post('/post', function (req, res) {
-  const body = req.body;
-  const userId = req.user._id;
+router.post('/post', async ctx => {
+  const body = ctx.request.body;
+  const userId = ctx.request._id;
+  const update = body._id;
 
-  async.waterfall([
-    function (callback) {
-      if (body._id.length) {
-        Post.findOne({ _id: body._id }, function (err, post) {
-          post = _.merge(post, body);
-          callback(null, post);
-        });
-      } else {
-        delete body._id; //remove empty id from post
+  let post = update ? await Post.findOne({ _id: body._id }) : new Post()
 
-        var post = new Post(body);
-        post._author = userId;
-        callback(null, post);
-      }
-    },
+  delete body._id
 
-    function (post, callback) {
-      post.save(function (err, saved) {
-        callback(err, saved);
-      })
-    }
-  ], function (err, user) {
-    if (err) {
-      console.log(err);
-      req.flash('errors', [{ msg: err.message }])
-      return res.redirect('/admin/post?' + qs.stringify(req.body))
-    }
+  post = _.merge(post, body);
 
-    req.flash('success', [{ msg: 'Saved' }])
-    res.redirect('/admin/posts')
-  });
+  try {
+    const saved = await post.save()
+    ctx.flash('success', ['Saved'])
+    ctx.redirect('/admin/posts')
+  } catch (e) {
+    console.log(e)
+    ctx.flash('errors', [e.message])
+    return ctx.redirect('back')
+  }
 })
 
-router.get('/post/delete/:id', function (req, res) {
-  Post.remove({ _id: req.params.id }, function (err) {
-    if (err) {
-      req.flash('error', { msg: err.message })
-    }else {
-      req.flash('success', { msg: 'deleted' })
-    }
+router.get('/post/delete/:id', async ctx => {
+  try {
+    await Post.remove({ _id: ctx.params.id })
+    ctx.flash('success', { msg: 'deleted' })
+  } catch (err) {
+    ctx.flash('error', { msg: err.message })
+  }
 
-    return res.redirect('/admin/posts')
-  })
+  return ctx.redirect('/admin/posts')
 })
 
 //PROJECT SECTION
 // list projects
 
-router.get('/projects', function (req, res) {
-
-  var query = Project.find();
-  var param = '';
-
-  if (req.query.search) {
-    param = decodeURI(req.query.search);
-    var search = { $regex: new RegExp(param, 'i') };
-
-    query.or([
-      { name: search },
-      { project_url: search }
-    ]);
+router.get('/projects', async ctx => {
+  let search = ctx.query.search
+  let query = {}
+  if (search) {
+    search = { $regex: new RegExp(search, 'i') }
+    query = { $or: [{ email: search }, { 'profile.name': search }] }
   }
 
-  query.exec(function (err, projects) {
-    res.render('admin/projects', { projects, search: param })
-  });
+  const projects = await Project.find(query)
+  ctx.render('admin/projects', { projects,
+    search: search === undefined ? '' : ctx.query.search })
 })
 
 // new projects
-router.get('/project', function (req, res) {
+router.get('/project', async ctx => {
   const project = {}
-  res.render('admin/project', { project })
+  const query = ctx.query
+
+  _.merge(project, query)
+  ctx.render('admin/project', { project })
 })
 
 // view/edit projects
-router.get('/project/:id', function (req, res) {
-  var id = req.params.id;
-  Project.findOne({ _id: id }, function (err, project) {
-    res.render('admin/project', {
-      project
-    })
-  })
+router.get('/project/:id', async ctx => {
+  const project = await Project.findOne({ _id: ctx.params.id })
+  ctx.render('admin/project', { project })
 })
 
 // add new/edit
-router.post('/project', function (req, res) {
-  var body = req.body;
+router.post('/project', async (ctx, next) => {
+  const body = ctx.request.body
+  ctx.checkBody('name', 'Name of project is required').notEmpty()
+  if (ctx.errors) {
+    ctx.flash('errors', ctx.errors)
+    return ctx.redirect('/admin/project?' + qs.stringify(body))
+  }
 
-  async.waterfall([
-    function (callback) {
-      if (body._id.length) {
-        Project.findOne({ _id: body._id }, function (err, project) {
-          user = _.merge(project, req.body);
-          callback(null, project);
-        });
-      } else {
-        delete body._id; //remove empty id from user
+  const update = body._id
 
-        var project = new Project(body);
-        callback(null, project);
-      }
-    },
+  let project = update ? await Project.findOne({ _id: body._id }) : new Project()
 
-    function (project, callback) {
-      project.save(function (err, saved) {
-        callback(err, saved);
-      })
-    }
-  ], function (err, project) {
-    if (err) {
-      console.log(err);
-      req.flash('errors', [{ msg: err.message }])
-      return res.redirect('/admin/user?' + qs.stringify(req.body))
-    }
+  delete body._id
 
-    req.flash('success', [{ msg: 'Saved' }])
-    res.redirect('/admin/projects')
-  });
+  project = _.merge(project, body)
+
+  try {
+    const saved = await project.save()
+    ctx.flash('success', ['Saved'])
+    ctx.redirect('/admin/projects')
+  }
+  catch (e) {
+    ctx.flash('errors', [e.message])
+    return ctx.redirect('back')
+  }
 })
 
-router.get('/project/delete/:id', function (req, res) {
-  Project.remove({ _id: req.params.id }, function (err) {
-    if (err) {
-      req.flash('error', { msg: err.message })
-    }else {
-      req.flash('success', { msg: 'deleted' })
-    }
+router.get('/project/delete/:id', async ctx => {
+  try {
+    await Project.remove({ _id: ctx.params.id })
+    ctx.flash('success', { msg: 'deleted' })
+  } catch (err) {
+    ctx.flash('error', { msg: err.message })
+  }
 
-    return res.redirect('/admin/projects')
-  })
+  return ctx.redirect('/admin/projects')
 })
 
 // IMAGE DROP FUNCTION
 
-router.post('/images/upload', upload.array('file', 20), function (req, res) {
-  async.mapSeries(req.files, function (file, next) {
-    file = new File(file)
-    file.save(next)
-  }, function done(err, results) {
-
-    const fileNames = results.map(file => file.originalname).join('<br/>')
-    res.send(results)
+router.post('/images/upload', upload.array('file', 20), async ctx => {
+  ctx.body = await Promise.mapSeries(ctx.req.files, item => {
+    let file = new File(item)
+    return file.save()
   })
 })
 
-//PRODUCT START
+// PRODUCT START
 // list products
-router.get('/products', function (req, res) {
-  var query = Product.find();
-  var param = '';
-  if (req.query.search) {
-    var param = decodeURI(req.query.search);
-    var search = { $regex: new RegExp(param, 'i') };
-    query.or([
-      { name: search }
-    ]);
+router.get('/products', async ctx => {
+  let search = ctx.query.search
+  let query = {}
+
+  if (search) {
+    search = { $regex: new RegExp(search, 'i') }
+    query = { $or:  [{ name: search }] }
   }
 
-  query.exec(function (err, products) {
-    res.render('admin/products', { products, search: param })
-  });
+  const products = await Product.find(query)
+  ctx.render('admin/products',
+    { products, search: search === undefined ? '' : ctx.query.search })
 })
 
-// new products
-
-router.get('/product', function (req, res) {
+/*** add new product  ********/
+router.get('/product', async ctx => {
   const product = {}
-  res.render('admin/product', { product })
+  const query = ctx.query
+
+  _.merge(product, query)
+  ctx.render('admin/product', { product })
 })
 
-// view/edit projects
-router.get('/product/:id', function (req, res) {
-  var id = req.params.id;
-  Product.findOne({ _id: id }, function (err, product) {
-    res.render('admin/product', {
-      product
-    })
-  })
+//view/edit update product
+router.get('/product/:id', async ctx => {
+  const product = await Product.findOne({ _id: ctx.params.id })
+  ctx.render('admin/product', { product })
 })
 
-// add new/edit
-router.post('/product', function (req, res) {
-  var id = req.body._id
-  var body = req.body;
+/**** new product edit  *******/
+router.post('/product', async (ctx, next) => {
+  const body = ctx.request.body
 
-  var errors = [];
-  if (!validator.isCurrency(body.price))
-    errors.push('Price is not valid');
-
-  if (errors.length) {
-    req.flash('errors', { msg: errors.join('<br>') });
-    return res.redirect('/admin/product/' + id);
+  if (ctx.errors) {
+    ctx.flash('errors', ctx.errors)
+    return ctx.redirect('/admin/product?', qs.stringify(body))
   }
 
-  async.waterfall([
-    function (callback) {
-      if (body._id.length) {
-        Product.findOne({ _id: body._id }, function (err, product) {
-          product = _.merge(product, req.body);
-          callback(null, product);
-        });
-      } else {
-        delete body._id; //remove empty id from user
+  const update = body._id
 
-        var product = new Product(body);
-        callback(null, product);
-      }
-    },
+  let product = update ? await Product.findOne({ _id: body._id }) : new Product()
 
-    function (product, callback) {
-      product.save(function (err, saved) {
-        callback(err, saved);
-      })
-    }
-  ], function (err, product) {
-    if (err) {
-      console.log(err);
-      req.flash('errors', [{ msg: err.message }])
-      return res.redirect('/admin/product?' + qs.stringify(req.body))
-    }
+  delete body._id
 
-    req.flash('success', [{ msg: product.name + ' saved' }])
-    res.redirect('/admin/products')
-  });
+  product = _.merge(product, body)
+
+  try {
+    const saved = await product.save()
+    ctx.flash('success', ['Saved'])
+    ctx.redirect('/admin/products')
+  } catch (e) {
+    console.log(e)
+    ctx.flash('errors', [e.message])
+    return ctx.redirect('back')
+  }
+
 })
 
-router.get('/product/delete/:id', function (req, res) {
-  Product.remove({ _id: req.params.id }, function (err) {
-    if (err) {
-      req.flash('error', { msg: err.message })
-    }else {
-      req.flash('success', { msg: 'deleted' })
-    }
+// product delete
+router.get('/product/delete/:id', async ctx => {
+  try {
+    await Product.remove({ _id: ctx.params.id })
+    ctx.flash('success', { msg: 'deleted' })
+  } catch (err) {
+    ctx.flash('error', { msg: err.message })
+  }
 
-    return res.redirect('/admin/products')
-  })
-});
+  return ctx.redirect('/admin/products')
+}) // end of Koa product delete
 
 //PRODUCT END
 
-// file model
-
 //display listings of files
-router.get('/files', function (req, res) {
-  var query = File.find();
-  var param = '';
+router.get('/files', async ctx => {
+  let search = ctx.query.search
+  let query = {}
 
-  if (req.query.search) {
-    param = decodeURI(req.query.search);
-    var search = { $regex: new RegExp(param, 'i') };
-
-    query.or([
-      { originalname: search },
-      { filename: search }
-    ]);
+  if (search) {
+    search = { $regex: new RegExp(search, 'i') }
+    query = { $or: [{ originalName: search }, { filename: search }] }
   }
 
-  query.exec(function (err, files) {
-    res.render('admin/files', { files, search: param })
-  });
+  const files = await File.find(query)
+  ctx.render('admin/files', { files, search: ctx.query.search })
 })
 
 //ADD new file model
-router.get('/file', function (req, res) {
-  res.render('admin/file')
+router.get('/file', async ctx => {
+  ctx.render('admin/file')
 })
 
 //view/edit file model
-router.get('/file/:id', function (req, res) {
-  var id = req.params.id;
+router.get('/file/:id', async ctx => {
+  var id = ctx.params.id
 
-  File.findOne({ _id: id }, function (err, file) {
-    res.render('admin/file', {
-      file
-    })
-  })
-})
+  const file = await File.findOne({ _id: id })
 
-// add new/edit file model
-router.post('/file', function (req, res) {
-  var body = req.body;
-
-  async.waterfall([
-    function (callback) {
-      if (body._id.length) {
-        File.findOne({ _id: body._id }, function (err, file) {
-          file = _.merge(file, req.body);
-          callback(null, file);
-        });
-      } else {
-        delete body._id; //remove empty id from user
-
-        var file = new File(body);
-        callback(null, file);
-      }
-    },
-
-    function (file, callback) {
-      file.save(function (err, saved) {
-        callback(err, saved);
-      })
-    }
-  ], function (err, file) {
-    if (err) {
-      console.log(err);
-      req.flash('errors', [{ msg: err.message }])
-      return res.redirect('/admin/file?' + qs.stringify(req.body))
-    }
-
-    req.flash('success', [{ msg: file.filename + ' saved' }])
-    res.redirect('/admin/files')
-  });
-})
-
-// update file model
-router.post('/file/:id', function (req, res) {
-  var id = req.params.id;
-  var body = req.body;
-  File.findOne({ _id: id }, function (err, file) {
-    file.original_name = body.original_name;
-    file.encoding = body.encoding;
-    file.mimetype = body.mimetype;
-    file.destination = body.destination;
-    file.filename = body.filename;
-    file.path = body.path;
-    file.size = body.size;
-    file.save(function (err, saved) {
-      res.redirect('/admin/files')
-    })
+  ctx.render('admin/file', {
+    file
   })
 })
 
 // remove file model
-router.get('/file/delete/:id', function (req, res) {
-  File.remove({ _id: req.params.id }, function (err) {
-    if (err) {
-      req.flash('error', { msg: err.message })
-    }else {
-      req.flash('success', { msg: 'deleted' })
-    }
+router.get('/file/delete/:id', async ctx => {
+  try {
+    await File.remove({ _id: ctx.params.id })
+    ctx.flash('success', ['deleted'])
+  }catch (e) {
+    req.flash('success', { msg: 'deleted' })
+  }
 
-    return res.redirect('/admin/files')
-  })
+  return ctx.redirect('/admin/files')
+})
+
+// get contact information from Mongo, use it to send to admin contacts page
+// use jade to present info
+router.get('/contacts', async ctx => {
+  const contacts = await Contact.find()
+  ctx.render('admin/contacts', { contacts })
+})
+
+// view individual contact info in Admin
+router.get('/contact/:id', async ctx => {
+  const id = ctx.params.id;
+  const contact = await Contact.findOne({ _id: id })
+  
+  ctx.render('admin/contact', { contact })
+})
+
+// delete individual contact info in Admin
+router.get('/contact/delete/:id', async ctx => {
+  const id = ctx.params.id;
+
+  try {
+    await Contact.remove({ _id: id })
+    ctx.flash('success', { msg: 'Contact Deleted Successfully' })
+  } catch (e) {
+    ctx.flash('error', { msg: err.message })
+  }
+
+  return ctx.redirect('/admin/contacts')
 })
 
 module.exports = router

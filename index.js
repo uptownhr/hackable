@@ -1,14 +1,16 @@
 'use strict'
+require('babel-register')
 
 const app = require('./bootstrap'),
   controllers = require('./controllers'),
   models = require('./models'),
   passport = require('./config/passport')
 
-app.use('/', controllers.Home)
-app.use('/blog', controllers.Post)
-app.use('/auth', controllers.Auth)
-app.use('/user', passport.isAuthenticated, controllers.User)
-app.use('/admin', passport.isAuthenticated, passport.isAdmin, controllers.Admin)
+app.use(controllers.Home.routes())
+app.use(controllers.Auth.routes())
+app.use(controllers.Post.routes())
+app.use(controllers.User.routes())
+
+app.use(controllers.Admin.routes())
 
 module.exports = app
