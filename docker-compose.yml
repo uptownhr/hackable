@@ -9,7 +9,7 @@ app:
   - redis
   - mongo
   environment:
-  - MONGODB=mongodb://mongo:27017/hackathon
+  - MONGODB=mongodb://mongo:27017/hackable
   - REDIS=redis://redis:6379
   ports:
   - 3000:3000
@@ -24,7 +24,7 @@ test:
   - redis
   - mongo
   environment:
-  - MONGODB=mongodb://mongo:27017/hackathon_test
+  - MONGODB=mongodb://mongo:27017/hackable_test
   - REDIS=redis://redis:6379
 mongo:
   image: mongo
