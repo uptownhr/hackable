@@ -30,17 +30,13 @@ html(lang='en')
         else
           a(href='/auth/login') Login
     br(style='clear: both;')
+    hr
     .container.content
-      header.masthead
-        h3.masthead-title
-          .post-page__logo-wrapper
-            a(href='/', title='Home')
-              img.post-page__logo(src='/site/img/logo.svg', alt='React')
-              |             hackable
       main
         include partials/flash
         block content
-      footer.footer
+      footer.footer(style='clear: both;')
+        hr
         small
           | © hackable
           time 2016

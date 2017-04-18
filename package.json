@@ -5,18 +5,21 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
-    "dev-docker": "npm install && npm run dev",
     "test": "PORT=9999 TEST=true istanbul cover _mocha",
     "posttest": "cat ./coverage/lcov.info | coveralls",
     "test-watch": "PORT=9999 TEST=true nodemon --exec 'mocha --reporter spec --timeout 5000'",
     "postversion": "git push && git push --tags",
-    "docker-mongo": "docker exec -it hackathonstarterlite_mongo_1 mongo",
-    "cover": "istanbul cover _mocha && cat ./coverage/lcov.info | coveralls"
+    "cover": "istanbul cover _mocha && cat ./coverage/lcov.info | coveralls",
+    "dev-docker": "npm install && npm run dev",
+    "docker-mongo": "docker exec -it hackable_mongo_1 mongo",
+    "docker-app": "docker exec -it hackable_app_1 bash",
+    "docker-npm": "docker exec hackable_app_1 npm"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "bcrypt-nodejs": "0.0.3",
+    "bluebird": "^3.3.5",
     "body-parser": "^1.15.0",
     "clipboard": "^1.5.10",
     "connect-redis": "^3.0.2",

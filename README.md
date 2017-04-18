@@ -1,3 +1,10 @@
+<p align="center">
+  <a href="http://gulpjs.com">
+    <img src="https://raw.githubusercontent.com/uptownhr/hackable/master/public/site/img/hackable-logo.png">
+  </a>
+  <p align="center">Personal site starter for express developers.</p>
+</p>
+
 [![Build Status](https://travis-ci.org/uptownhr/hackable.svg)](https://travis-ci.org/uptownhr/hackable)
 [![Dependency Status](https://david-dm.org/uptownhr/hackable.svg)](https://david-dm.org/uptownhr/hackable)
 [![devDependency Status](https://david-dm.org/uptownhr/hackable/dev-status.svg)](https://david-dm.org/uptownhr/hackable)
@@ -54,6 +61,11 @@ If you have docker available, you can get started in two steps.
 ### Docker Installation
 1. [install docker](https://docs.docker.com/engine/installation/)
 2. [install docker-compose](https://docs.docker.com/compose/install/)
+
+### NPM Helper commands
+- Getting into the app container: `npm run docker-app`
+- Getting into the mongo shell: `npm run docker-mongo`
+- NPM inside the app container: `npm run docker-npm`
 
 ## Guides and Examples
 - [getting started without docker](docs/getting-started-without-docker.md)

@@ -1,12 +1,18 @@
 extends layout
 
 block content
-  p.text-xs-center
-    | Personal site starter for express developers.
-  p
-    a.btn.btn-block.btn-social.btn-github(href='http://github.com/uptownhr/hackathon-starter-lite')
-      i.fa.btn-xs.fa-github
-      |  View on Github
+  header.masthead
+    h3.masthead-title
+      .post-page__logo-wrapper
+        a(href='/', title='Home')
+          img.post-page__logo(src='/site/img/hackable-logo.png', alt='React')
+    p.text-xs-center
+      | Personal site starter for express developers.
+    p
+      a.btn.btn-block.btn-social.btn-github(href='http://github.com/uptownhr/hackathon-starter-lite')
+        i.fa.btn-xs.fa-github
+        |  View on Github
+
 
   .card-deck-wrapper
     .card-deck
@@ -16,7 +22,7 @@ block content
             a(href=project.project_url)=project.name
           .card-block
             a(href=project.project_url)
-              img.img-circle.card-img-top(src=project.logo_url, style="margin: 0 auto; max-height: 100%")
+              img.card-img-top(src=project.logo_url, style="margin: 0 auto; max-height: 100%")
 
     //
       .col-lg-4.col-sm-6.text-center(style="height: 400px")

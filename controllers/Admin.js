@@ -1,7 +1,9 @@
+"use strict"
+
 const router = require('express').Router()
 const
   _ = require('lodash'),
-  async = require('async'),
+  Promise = require('bluebird'),
   multer = require('multer'),
   path = require('path'),
   qs = require('qs'),
@@ -9,11 +11,13 @@ const
   models = require('../models')
 
 const upload = multer({ dest: path.join(__dirname, '../public/uploads') })
+// Get Model Schemas
 const User =  models.User
 const Post = models.Post
 const File = models.File
 const Project = models.Project
 const Product = models.Product
+const Contact = models.Contact
 
 router.get('/', function (req, res) {
   res.render('admin/overview')
@@ -22,7 +26,6 @@ router.get('/', function (req, res) {
 router.get('/user', function (req, res) {
   const user = {}
   res.render('admin/user', { user })
-  console.log("wf0t");
 })
 
 router.get('/user/:id', function (req, res) {
@@ -39,7 +42,7 @@ router.post('/user', function (req, res) {
     req.assert('confirmPassword', 'Passwords do not match').equals(req.body.password);
   }
 
-  var errors = req.validationErrors();
+  const errors = req.validationErrors();
 
   if (errors) {
     console.log(errors);
@@ -49,36 +52,41 @@ router.post('/user', function (req, res) {
 
   const body = req.body;
 
-  async.waterfall([
-    function (callback) {
-      if (body._id.length) {
-        User.findOne({ _id: body._id }, function (err, user) {
-          user = _.merge(user, req.body);
-          callback(null, user);
-        });
-      } else {
-        delete body._id; //remove empty id from user
-
-        var user = new User(body);
-        callback(null, user);
-      }
-    },
-
-    function (user, callback) {
-      user.save(function (err, saved) {
-        callback(err, saved);
-      })
+  const userFields = new Promise( (resolve, reject) => {
+    if (body._id.length) {
+      User.findOne({ _id: body._id }, function (err, user) {
+        user = _.merge(user, req.body);
+        resolve(user);
+      });
+    } else {
+      delete body._id; //remove empty id from user
+      let user = new User(body);
+      resolve(user);
     }
-  ], function (err, user) {
-    if (err) {
-      console.log(err);
-      req.flash('errors', [{ msg: err.message }])
-      return res.redirect('/admin/user?' + qs.stringify(req.body))
-    }
-
-    req.flash('success', [{ msg: 'Saved' }])
-    res.redirect('/admin/users')
   });
+  
+  userFields.then(function(user){
+    user.save().then(result => {
+      req.flash('success', [{ msg: result.profile.name + ' Saved' }])
+      res.redirect('/admin/users')
+    }).catch(err => {
+      handleErr(err);
+    });
+  }).catch(err => {
+    handleErr(err);
+  })
+  
+  const handleErr = err => {
+    req.flash('errors', [{ msg: 'Could not save user' }])
+    
+    //create redirect url for new or existing user
+    let url = '/admin/user';
+
+    if (typeof body._id !== "undefined")
+      url = url + '/' + body._id;
+    
+    return res.redirect(url + '?' + qs.stringify(body))
+  }
 })
 
 router.get('/user/delete/:id', function (req, res) {
@@ -154,38 +162,45 @@ router.get('/post/:id', function (req, res) {
 router.post('/post', function (req, res) {
   const body = req.body;
   const userId = req.user._id;
+  
+  const postFields = new Promise( (resolve, reject) => {
+    
+    if (body._id.length) {
+      Post.findOne({ _id: body._id }, function (err, post) {
+        post = _.merge(post, body);
+        resolve(post);
+      });
+    } else {
+      delete body._id; //remove empty id from post
 
-  async.waterfall([
-    function (callback) {
-      if (body._id.length) {
-        Post.findOne({ _id: body._id }, function (err, post) {
-          post = _.merge(post, body);
-          callback(null, post);
-        });
-      } else {
-        delete body._id; //remove empty id from post
-
-        var post = new Post(body);
-        post._author = userId;
-        callback(null, post);
-      }
-    },
-
-    function (post, callback) {
-      post.save(function (err, saved) {
-        callback(err, saved);
-      })
+      let post = new Post(body);
+      post._author = userId;
+      resolve(post);
     }
-  ], function (err, user) {
-    if (err) {
-      console.log(err);
-      req.flash('errors', [{ msg: err.message }])
-      return res.redirect('/admin/post?' + qs.stringify(req.body))
-    }
-
-    req.flash('success', [{ msg: 'Saved' }])
-    res.redirect('/admin/posts')
   });
+  
+  postFields.then(function(post){
+    post.save().then(result => {
+      req.flash('success', [{ msg: result.title + ' Saved' }])
+      res.redirect('/admin/posts')
+    }).catch(err => {
+      handleErr(err);
+    });
+  }).catch(err => {
+    handleErr(err);
+  })
+  
+  const handleErr = err => {
+    req.flash('errors', [{ msg: 'Could not save post' }])
+    
+    //create redirect url for new or existing user
+    let url = '/admin/post';
+
+    if (typeof body._id !== "undefined")
+      url = url + '/' + body._id;
+    
+    return res.redirect(url + '?' + qs.stringify(body))
+  }
 })
 
 router.get('/post/delete/:id', function (req, res) {
@@ -231,7 +246,7 @@ router.get('/project', function (req, res) {
 
 // view/edit projects
 router.get('/project/:id', function (req, res) {
-  var id = req.params.id;
+  const id = req.params.id;
   Project.findOne({ _id: id }, function (err, project) {
     res.render('admin/project', {
       project
@@ -241,38 +256,45 @@ router.get('/project/:id', function (req, res) {
 
 // add new/edit
 router.post('/project', function (req, res) {
-  var body = req.body;
+  const body = req.body;
 
-  async.waterfall([
-    function (callback) {
-      if (body._id.length) {
-        Project.findOne({ _id: body._id }, function (err, project) {
-          user = _.merge(project, req.body);
-          callback(null, project);
-        });
-      } else {
-        delete body._id; //remove empty id from user
+  const projectFields = new Promise( (resolve, reject) => {
+    
+    if (body._id.length) {
+      Project.findOne({ _id: body._id }, function (err, project) {
+        project = _.merge(project, body);
+        resolve(project);
+      });
+    } else {
+      delete body._id; //remove empty id from user
 
-        var project = new Project(body);
-        callback(null, project);
-      }
-    },
-
-    function (project, callback) {
-      project.save(function (err, saved) {
-        callback(err, saved);
-      })
+      let project = new Project(body);
+      resolve(project);
     }
-  ], function (err, project) {
-    if (err) {
-      console.log(err);
-      req.flash('errors', [{ msg: err.message }])
-      return res.redirect('/admin/user?' + qs.stringify(req.body))
-    }
-
-    req.flash('success', [{ msg: 'Saved' }])
-    res.redirect('/admin/projects')
   });
+  
+  projectFields.then(function(project){
+    project.save().then(result => {
+      req.flash('success', [{ msg: result.name + ' Saved' }])
+      res.redirect('/admin/projects')
+    }).catch(err => {
+      handleErr(err);
+    });
+  }).catch(err => {
+    handleErr(err);
+  })
+  
+  const handleErr = err => {
+    req.flash('errors', [{ msg: 'Could not save project' }])
+    
+    //create redirect url for new or existing user
+    let url = '/admin/project';
+
+    if (typeof body._id !== "undefined")
+      url = url + '/' + body._id;
+    
+    return res.redirect(url + '?' + qs.stringify(body))
+  }
 })
 
 router.get('/project/delete/:id', function (req, res) {
@@ -290,14 +312,16 @@ router.get('/project/delete/:id', function (req, res) {
 // IMAGE DROP FUNCTION
 
 router.post('/images/upload', upload.array('file', 20), function (req, res) {
-  async.mapSeries(req.files, function (file, next) {
+  
+  Promise.map(req.files, file => {
     file = new File(file)
-    file.save(next)
-  }, function done(err, results) {
-
+    return file.save().then(file => {
+      return file;
+    })
+  }).then(results => {
     const fileNames = results.map(file => file.originalname).join('<br/>')
     res.send(results)
-  })
+  }).catch(err => console.log(err))
 })
 
 //PRODUCT START
@@ -327,7 +351,7 @@ router.get('/product', function (req, res) {
 
 // view/edit projects
 router.get('/product/:id', function (req, res) {
-  var id = req.params.id;
+  const id = req.params.id;
   Product.findOne({ _id: id }, function (err, product) {
     res.render('admin/product', {
       product
@@ -337,8 +361,8 @@ router.get('/product/:id', function (req, res) {
 
 // add new/edit
 router.post('/product', function (req, res) {
-  var id = req.body._id
-  var body = req.body;
+  const id = req.body._id
+  const body = req.body;
 
   var errors = [];
   if (!validator.isCurrency(body.price))
@@ -349,36 +373,43 @@ router.post('/product', function (req, res) {
     return res.redirect('/admin/product/' + id);
   }
 
-  async.waterfall([
-    function (callback) {
-      if (body._id.length) {
-        Product.findOne({ _id: body._id }, function (err, product) {
-          product = _.merge(product, req.body);
-          callback(null, product);
-        });
-      } else {
-        delete body._id; //remove empty id from user
+  const productFields = new Promise( (resolve, reject) => {
+    
+    if (body._id.length) {
+      Product.findOne({ _id: body._id }, function (err, product) {
+        product = _.merge(product, body);
+        resolve(product);
+      });
+    } else {
+      delete body._id; //remove empty id from user
 
-        var product = new Product(body);
-        callback(null, product);
-      }
-    },
-
-    function (product, callback) {
-      product.save(function (err, saved) {
-        callback(err, saved);
-      })
+      let product = new Product(body);
+      resolve(product);
     }
-  ], function (err, product) {
-    if (err) {
-      console.log(err);
-      req.flash('errors', [{ msg: err.message }])
-      return res.redirect('/admin/product?' + qs.stringify(req.body))
-    }
-
-    req.flash('success', [{ msg: product.name + ' saved' }])
-    res.redirect('/admin/products')
   });
+  
+  productFields.then(function(product){
+    product.save().then(result => {
+      req.flash('success', [{ msg: result.name + ' Saved' }])
+      res.redirect('/admin/products')
+    }).catch(err => {
+      handleErr(err);
+    });
+  }).catch(err => {
+    handleErr(err);
+  })
+  
+  const handleErr = err => {
+    req.flash('errors', [{ msg: 'Could not save product' }])
+    
+    //create redirect url for new or existing user
+    let url = '/admin/product';
+
+    if (typeof body._id !== "undefined")
+      url = url + '/' + body._id;
+    
+    return res.redirect(url + '?' + qs.stringify(body))
+  }
 })
 
 router.get('/product/delete/:id', function (req, res) {
@@ -424,7 +455,7 @@ router.get('/file', function (req, res) {
 
 //view/edit file model
 router.get('/file/:id', function (req, res) {
-  var id = req.params.id;
+  const id = req.params.id;
 
   File.findOne({ _id: id }, function (err, file) {
     res.render('admin/file', {
@@ -435,44 +466,51 @@ router.get('/file/:id', function (req, res) {
 
 // add new/edit file model
 router.post('/file', function (req, res) {
-  var body = req.body;
+  const body = req.body;
+  
+  var fileFields = new Promise( (resolve, reject) => {
+    
+    if (body._id.length) {
+      File.findOne({ _id: body._id }, function (err, file) {
+        file = _.merge(file, req.body);
+        resolve(file);
+      });
+    } else {
+      delete body._id; //remove empty id from user
 
-  async.waterfall([
-    function (callback) {
-      if (body._id.length) {
-        File.findOne({ _id: body._id }, function (err, file) {
-          file = _.merge(file, req.body);
-          callback(null, file);
-        });
-      } else {
-        delete body._id; //remove empty id from user
-
-        var file = new File(body);
-        callback(null, file);
-      }
-    },
-
-    function (file, callback) {
-      file.save(function (err, saved) {
-        callback(err, saved);
-      })
+      let file = new File(body);
+      resolve(file);
     }
-  ], function (err, file) {
-    if (err) {
-      console.log(err);
-      req.flash('errors', [{ msg: err.message }])
-      return res.redirect('/admin/file?' + qs.stringify(req.body))
-    }
-
-    req.flash('success', [{ msg: file.filename + ' saved' }])
-    res.redirect('/admin/files')
   });
+  
+  fileFields.then(function(file){
+    file.save().then(result => {
+      req.flash('success', [{ msg: file.filename + ' saved' }])
+      res.redirect('/admin/files')
+    }).catch(err => {
+      handleErr(err);
+    });
+  }).catch(err => {
+    handleErr(err);
+  })
+  
+  var handleErr = err => {
+    req.flash('errors', [{ msg: 'Could not save file' }])
+    
+    //create redirect url for new or existing user
+    let url = '/admin/file';
+
+    if (typeof body._id !== "undefined")
+      url = url + '/' + body._id;
+    
+    return res.redirect(url + '?' + qs.stringify(body))
+  }
 })
 
 // update file model
 router.post('/file/:id', function (req, res) {
-  var id = req.params.id;
-  var body = req.body;
+  const id = req.params.id;
+  const body = req.body;
   File.findOne({ _id: id }, function (err, file) {
     file.original_name = body.original_name;
     file.encoding = body.encoding;
@@ -499,5 +537,16 @@ router.get('/file/delete/:id', function (req, res) {
     return res.redirect('/admin/files')
   })
 })
+
+// route to contacts list view in admin ctrl panel 
+router.get('/contacts', function(req, res) {
+  res.render('admin/contacts.jade')
+})
+
+// route to individual contact view/edit in admin ctrl panel
+router.get('/contact', function(req, res) {
+  res.render('admin/contact.jade')
+})
+
 
 module.exports = router

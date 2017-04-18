@@ -13,7 +13,6 @@ var Seeder = function () {
     .then(() => User.findOne({ role: 'admin' }))
     .then(user => {
       if (user) throw new Error(user)
-
       return new User({
         email: 'admin@admin.com',
         password: 'asdfasdf',
@@ -54,11 +53,11 @@ var Seeder = function () {
         _author: user._id,
       }).save())
     .then(post => new Project({
-        name: 'hackathon starter lite',
+        name: 'hackable',
         tag_line: 'create your personal project',
         description: 'jump start your project with an admin, blog, products',
-        logo_url: '/site/img/logo.svg',
-        project_url: 'https://github.com/uptownhr/hackathon-starter-lite'
+        logo_url: '/site/img/hackable-logo.png',
+        project_url: 'https://github.com/uptownhr/hackable'
       }).save().then(() => new Project({
           name: 'honeybadger',
           tag_line: 'A hackathon starter built for simplicity',
