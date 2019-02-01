@@ -1,10 +1,10 @@
-FROM node:6.0.0
+FROM node:10-alpine
 
-ADD ./ /app
+ADD ./ /api
 
-WORKDIR /app
+WORKDIR /api
 
-RUN npm install
+RUN yarn
 
 EXPOSE "3000"
 

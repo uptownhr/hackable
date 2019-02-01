@@ -1,10 +1,10 @@
-app:
+api:
   image: uptownhr/hackable
   volumes:
-  - ./:/app
-  - node_modules:/app/node_modules
-  working_dir: /app
-  command: npm run dev-docker
+  - ./:/api
+  - /tmp/node_modules:/api/node_modules
+  working_dir: /api
+  command: yarn dev-docker
   links:
   - redis
   - mongo
@@ -13,19 +13,7 @@ app:
   - REDIS=redis://redis:6379
   ports:
   - 3000:3000
-test:
-  image: node:5.8.0
-  volumes_from:
-  - app
-  working_dir: /app
-  command: npm run test-watch
-  links:
-  - app
-  - redis
-  - mongo
-  environment:
-  - MONGODB=mongodb://mongo:27017/hackable_test
-  - REDIS=redis://redis:6379
+
 mongo:
   image: mongo
 redis:

@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
-    "dev-docker": "npm install && npm run dev",
+    "dev-docker": "yarn dev",
     "test": "PORT=9999 TEST=true istanbul cover _mocha",
     "posttest": "cat ./coverage/lcov.info | coveralls",
     "test-watch": "PORT=9999 TEST=true nodemon --exec 'mocha --reporter spec --timeout 5000'",
@@ -31,6 +31,8 @@
     "moment": "^2.12.0",
     "mongoose": "^4.4.5",
     "multer": "^1.1.0",
+    "netlify-identity-widget": "^1.5.2",
+    "nuxt": "^2.4.2",
     "passport": "^0.3.2",
     "passport-facebook": "^2.1.0",
     "passport-github": "^1.1.0",
