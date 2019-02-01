@@ -11,7 +11,8 @@
     "test-watch": "PORT=9999 TEST=true nodemon --exec 'mocha --reporter spec --timeout 5000'",
     "postversion": "git push && git push --tags",
     "docker-mongo": "docker exec -it hackathonstarterlite_mongo_1 mongo",
-    "cover": "istanbul cover _mocha && cat ./coverage/lcov.info | coveralls"
+    "cover": "istanbul cover _mocha && cat ./coverage/lcov.info | coveralls",
+    "generate": "nuxt generate"
   },
   "author": "",
   "license": "ISC",
